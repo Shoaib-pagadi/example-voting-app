@@ -1,0 +1,64 @@
+trigger:
+- AzureCICD
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: '76adda46-94cc-4174-a182-79a8ba37cc41'
+  imageRepository: 'simplevotingapp'
+  containerRegistry: 'DockerCICD.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/vote/Dockerfile'
+  tag: '$(Build.BuildNumber)'
+
+  # Agent VM image name
+pool:
+  name: 'azureagent'
+
+stages:
+- stage: Build
+  displayName: Build
+  jobs:
+  - job: Build
+    displayName: Build
+    steps:
+    - task: Docker@2
+      displayName: Build an image
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: '$(imageRepository)'
+        command: 'build'
+        Dockerfile: '**/Dockerfile'
+        tags: '$(tag)'
+
+- stage: push
+  displayName: push
+  jobs:
+  - job: push
+    displayName: push
+    steps:
+    - task: Docker@2
+      displayName: push an image
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: '$(imageRepository)'
+        command: 'push'
+        Dockerfile: '**/Dockerfile'
+        tags: '$(tag)'
+
+
+
+- stage: udpate
+  displayName: update
+  jobs:
+  - job: update
+    displayName: update
+    steps:
+    - script: |
+        sudo apt update 
+        sudo apt install dos2unix -y
+        dos2unix ./update.sh
+
+      displayName: 'Install pkgs'
+    - task: ShellScript@2
+      inputs:
+        scriptPath: 'update.sh'
+        args: 'vote voteapp $(Build.BuildNumber)'
