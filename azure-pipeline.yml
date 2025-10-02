@@ -1,0 +1,61 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+# Add args while creating pipeline
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: 'Service connection'
+  imageRepository: 'simplevotingapp'
+  containerRegistry: 'shoaibpagadi.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/vote/Dockerfile'
+  tag: '$(Build.BuildNumber)'
+
+pool:
+ name: 'azureagent'
+
+stages:
+- stage: Build
+  displayName: Build
+  jobs:
+  - job: Build
+    displayName: Build
+    steps:
+    - task: Docker@2
+      displayName: Build
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: '$(imageRepository)'
+        command: 'build'
+        Dockerfile: '**/Dockerfile'
+        tags: '$(tag)'
+
+- stage: push
+  displayName: push
+  jobs:
+  - job: push
+    displayName: push
+    steps:
+    - task: Docker@2
+      displayName: push
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: '$(imageRepository)'
+        command: 'push'
+        tags: '$(tag)'
+
+- stage: Update_manifest
+  displayName: 
+  jobs:
+  - job: Update_manifest
+    displayName: Update_manifest
+    steps:
+    - script: |
+        sudo apt update 
+        sudo apt install dos2unix -y
+        dos2unix ./update.sh
+      displayName: 'Install pkgs and fix script format'
+    - task: ShellScript@2
+      inputs:
+        scriptPath: 'update.sh'
+        args: 'vote simplevotingapp $(Build.BuildId)'
